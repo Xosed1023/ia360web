@@ -1,0 +1,48 @@
+<div class="flex items-center justify-center h-screen bg-slate-900 px-4">
+    <div class="bg-white p-6 rounded shadow-md w-full max-w-sm">
+      <div class="flex flex-row items-center justify-center align-middle mb-4 ">
+        <h1 class="text-7xl mt-2">ia 360</h1>
+        <img class="w-16" src="../../../assets/logo-ia360.svg" alt="logo">
+      </div>
+      <h2 class="text-2xl font-bold mb-4">Iniciar sesión</h2>
+      <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+        <div class="mb-4">
+          <label for="username" class="block text-sm font-medium">Usuario</label>
+          <input
+            type="text"
+            id="username"
+            formControlName="username"
+            class="mt-1 block w-full px-3 py-2 border rounded"
+          />
+          <div *ngIf="loginForm.get('username')?.invalid && loginForm.get('username')?.touched" class="text-red-500 text-sm">
+            Usuario es requerido.
+          </div>
+        </div>
+  
+        <div class="mb-4">
+          <label for="password" class="block text-sm font-medium">Contraseña</label>
+          <input
+            type="password"
+            id="password"
+            formControlName="password"
+            class="mt-1 block w-full px-3 py-2 border rounded"
+          />
+          <div *ngIf="loginForm.get('password')?.invalid && loginForm.get('password')?.touched" class="text-red-500 text-sm">
+            Contraseña es requerida.
+          </div>
+        </div>
+        
+        <div class="text-end text-sm my-4">
+            Si no tienes una cuenta, <a routerLink="/auth/register" class="text-slate-900 underline">regístrate</a>
+        </div>
+
+        <button 
+          type="submit" 
+          class="bg-slate-900 text-white px-4 py-2 rounded w-full"
+          [disabled]="loginForm.invalid">
+          Entrar
+        </button>
+      </form>
+  
+    </div>
+  </div>

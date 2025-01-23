@@ -1,0 +1,50 @@
+<div class="flex flex-col h-screen bg-gray-100">
+  <!-- Chat Header -->
+  <div
+    class="bg-slate-900 text-white p-4 flex items-center justify-between">
+    <h1 class="text-lg font-semibold">Arys</h1>
+    <button class="" (click)="showOptions = !showOptions">
+      &#x2699;
+    </button>
+  </div>
+  <div
+    class="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black/5 focus:outline-none"
+    role="menu" aria-orientation="vertical" aria-labelledby="menu-button" tabindex="-1" *ngIf="showOptions">
+    <div class="py-1" role="none">
+      <button type="button" class="block w-full px-4 py-2 text-left text-sm text-gray-700" role="menuitem" tabindex="-1"
+        id="menu-item-3" (click)="authService.logout()">Sign out</button>
+    </div>
+  </div>
+
+  <!-- Chat Messages -->
+  <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-image mx-auto w-full max-w-screen-md" #messageContainer>
+    <div *ngFor="let message of messages" [ngClass]="message.type === 'incoming' ? 'flex items-start space-x-2' : 
+                        'flex items-end justify-end space-x-2'">
+      <div [ngClass]="message.type === 'incoming' 
+        ? 'bg-slate-900 text-slate-300 p-3 rounded-xl max-w-xs shadow-lg animate-fadeInLeft'
+        : 'bg-gray-300 text-slate-900 p-3 rounded-xl max-w-xs shadow-lg animate-fadeInRight'">
+        <ng-container *ngIf="!message.isImage">
+          <p>{{ message.text }}</p>
+        </ng-container>
+        <ng-container *ngIf="message.isImage">
+          <img [src]="message.text" alt="Imagen generada" class="rounded-lg shadow-md max-w-full" />
+        </ng-container>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat Input Form -->
+  <form (ngSubmit)="sendMessage()" [formGroup]="messageForm"
+    class="bg-white p-4 flex items-center space-x-2 shadow-sm input-box w-full max-w-screen-md mx-auto">
+    <input type="text" formControlName="message" placeholder="Escribe un mensaje..."
+      class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-slate-900"
+      required />
+    <button type="submit" class="bg-slate-900 text-white rounded-full p-3 shadow-md hover:bg-slate-800 transition-all"
+      [disabled]="messageForm.invalid">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
+        class="w-5 h-5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3 10l11-7m0 0l11 7m-11-7v18" />
+      </svg>
+    </button>
+  </form>
+</div>

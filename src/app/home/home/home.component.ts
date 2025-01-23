@@ -55,6 +55,16 @@ export class HomeComponent implements OnInit {
   }
 
   async sendMessage(): Promise<void> {
+    if(navigator){
+      alert('Vibrando');
+      try {
+        window.navigator.vibrate(50);
+      } catch (error) {
+        console.log(`Error al vibrar ${error}`);
+      }
+    }else{
+      console.log('No se puede vibrar');
+    }
     if (this.messageForm.invalid) return;
 
     const userMessage = this.messageForm.value.message;
@@ -82,6 +92,7 @@ export class HomeComponent implements OnInit {
       );
       if (lastIncomingMessage) {
         lastIncomingMessage.complete = true;
+        this.scrollToBottom();
       }
     }
   }

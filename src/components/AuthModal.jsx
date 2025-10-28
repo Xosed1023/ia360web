@@ -183,14 +183,14 @@ function AuthModal({ isOpen, onClose }) {
         <div className="relative overflow-hidden">
           {/* Login Form */}
           <div
-            className={`transition-all duration-300 ease-in-out ${
+            className={`transition-all duration-300 ease-in-out p-1 ${
               activeTab === "login"
                 ? "opacity-100 translate-x-0"
                 : "opacity-0 translate-x-full absolute inset-0 pointer-events-none"
             }`}
           >
             <form onSubmit={handleLogin} className="space-y-6">
-              <div className="transform transition-all duration-300 hover:scale-[1.01]">
+              <div className="transform transition-all duration-300">
                 <label className="block text-sm font-semibold text-gray-900 mb-2">
                   Nombre de usuario
                 </label>
@@ -220,7 +220,7 @@ function AuthModal({ isOpen, onClose }) {
                 </div>
               </div>
 
-              <div className="transform transition-all duration-300 hover:scale-[1.01]">
+              <div className="transform transition-all duration-300">
                 <label className="block text-sm font-semibold text-gray-900 mb-2">
                   Contraseña
                 </label>
@@ -260,7 +260,7 @@ function AuthModal({ isOpen, onClose }) {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-teal-500 hover:bg-teal-600 text-white py-3 rounded-lg font-semibold transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-teal-500 hover:bg-teal-600 text-white py-3 rounded-lg font-semibold transition-all transform disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
               </button>
@@ -277,7 +277,7 @@ function AuthModal({ isOpen, onClose }) {
               <div className="grid grid-cols-2 gap-4">
                 <button
                   type="button"
-                  className="flex items-center justify-center gap-2 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+                  className="flex items-center justify-center gap-2 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all transform"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path
@@ -304,7 +304,7 @@ function AuthModal({ isOpen, onClose }) {
 
                 <button
                   type="button"
-                  className="flex items-center justify-center gap-2 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+                  className="flex items-center justify-center gap-2 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all transform"
                 >
                   <svg className="w-5 h-5" fill="#0A66C2" viewBox="0 0 24 24">
                     <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
@@ -319,14 +319,14 @@ function AuthModal({ isOpen, onClose }) {
 
           {/* Register Form */}
           <div
-            className={`transition-all duration-300 ease-in-out ${
+            className={`transition-all duration-300 ease-in-out p-1 ${
               activeTab === "register"
                 ? "opacity-100 translate-x-0"
                 : "opacity-0 -translate-x-full absolute inset-0 pointer-events-none"
             }`}
           >
             <form onSubmit={handleRegister} className="space-y-6">
-              <div className="transform transition-all duration-300 hover:scale-[1.01]">
+              <div className="transform transition-all duration-300">
                 <label className="block text-sm font-semibold text-gray-900 mb-2">
                   Nombre de usuario
                 </label>
@@ -358,7 +358,7 @@ function AuthModal({ isOpen, onClose }) {
                 </div>
               </div>
 
-              <div className="transform transition-all duration-300 hover:scale-[1.01]">
+              <div className="transform transition-all duration-300">
                 <label className="block text-sm font-semibold text-gray-900 mb-2">
                   Nombres
                 </label>
@@ -390,7 +390,7 @@ function AuthModal({ isOpen, onClose }) {
                 </div>
               </div>
 
-              <div className="transform transition-all duration-300 hover:scale-[1.01]">
+              <div className="transform transition-all duration-300">
                 <label className="block text-sm font-semibold text-gray-900 mb-2">
                   Contraseña
                 </label>
@@ -422,7 +422,7 @@ function AuthModal({ isOpen, onClose }) {
                 </div>
               </div>
 
-              <div className="transform transition-all duration-300 hover:scale-[1.01]">
+              <div className="transform transition-all duration-300">
                 <label className="block text-sm font-semibold text-gray-900 mb-2">
                   Confirmar Contraseña
                 </label>
@@ -456,7 +456,7 @@ function AuthModal({ isOpen, onClose }) {
 
               <button
                 type="submit"
-                className="w-full bg-teal-500 hover:bg-teal-600 text-white py-3 rounded-lg font-semibold transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+                className="w-full bg-teal-500 hover:bg-teal-600 text-white py-3 rounded-lg font-semibold transition-all transform"
               >
                 Registrarse
               </button>
@@ -473,7 +473,7 @@ function AuthModal({ isOpen, onClose }) {
               <div className="grid grid-cols-2 gap-4">
                 <button
                   type="button"
-                  className="flex items-center justify-center gap-2 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+                  className="flex items-center justify-center gap-2 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all transform"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path
@@ -500,7 +500,7 @@ function AuthModal({ isOpen, onClose }) {
 
                 <button
                   type="button"
-                  className="flex items-center justify-center gap-2 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+                  className="flex items-center justify-center gap-2 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all transform"
                 >
                   <svg className="w-5 h-5" fill="#0A66C2" viewBox="0 0 24 24">
                     <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />

@@ -2,9 +2,8 @@ import { useRef, useMemo } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
-import GoogleParticleSphere from './GoogleParticleSphere'
 
-function HybridSphere() {
+function HybridSphere({ enableMouseInteraction = true, isListening = false }) {
   const pointsRef = useRef()
   const linesRef = useRef()
   const time = useRef(0)
@@ -67,6 +66,8 @@ function HybridSphere() {
 
   // Capturar posición del mouse
   const handlePointerMove = (event) => {
+    if (!enableMouseInteraction) return
+    
     mousePos.current = {
       x: (event.point.x / viewport.width) * 2,
       y: (event.point.y / viewport.height) * 2
@@ -112,21 +113,23 @@ function HybridSphere() {
         colors[i + 2] = finalColor.b
 
         // Interacción con el mouse - explosión suave
-        const dx = positions[i] - mousePos.current.x * 4
-        const dy = positions[i + 1] - mousePos.current.y * 4
-        const dz = positions[i + 2]
-        const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
-        
         let targetX = originalPositions[i] * breathe + wave
         let targetY = originalPositions[i + 1] * breathe + wave
         let targetZ = originalPositions[i + 2] * breathe
 
-        if (distance < 2.5) {
-          // Explosión hacia afuera
-          const force = (2.5 - distance) * 0.4
-          targetX += (dx / distance) * force
-          targetY += (dy / distance) * force
-          targetZ += (dz / distance) * force * 0.3
+        if (enableMouseInteraction) {
+          const dx = positions[i] - mousePos.current.x * 4
+          const dy = positions[i + 1] - mousePos.current.y * 4
+          const dz = positions[i + 2]
+          const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
+
+          if (distance < 2.5) {
+            // Explosión hacia afuera
+            const force = (2.5 - distance) * 0.4
+            targetX += (dx / distance) * force
+            targetY += (dy / distance) * force
+            targetZ += (dz / distance) * force * 0.3
+          }
         }
 
         // Interpolación suave
@@ -225,12 +228,12 @@ function HybridSphere() {
       </lineSegments>
 
       {/* Partículas flotantes ambientales */}
-      <FloatingParticles mousePos={mousePos} timeRef={time} />
+      <FloatingParticles mousePos={mousePos} timeRef={time} enableMouseInteraction={enableMouseInteraction} />
     </group>
   )
 }
 
-function FloatingParticles({ mousePos, timeRef }) {
+function FloatingParticles({ mousePos, timeRef, enableMouseInteraction = true }) {
   const particlesRef = useRef()
 
   const { floatingParticles, originalFloating } = useMemo(() => {
@@ -276,14 +279,16 @@ function FloatingParticles({ mousePos, timeRef }) {
         colors[i + 2] = color.b
 
         // Reacción al mouse
-        const dx = positions[i] - mousePos.current.x * 4
-        const dy = positions[i + 1] - mousePos.current.y * 4
-        const distance = Math.sqrt(dx * dx + dy * dy)
-        
-        if (distance < 4) {
-          const force = (4 - distance) * 0.03
-          positions[i] += (dx / distance) * force
-          positions[i + 1] += (dy / distance) * force
+        if (enableMouseInteraction) {
+          const dx = positions[i] - mousePos.current.x * 4
+          const dy = positions[i + 1] - mousePos.current.y * 4
+          const distance = Math.sqrt(dx * dx + dy * dy)
+          
+          if (distance < 4) {
+            const force = (4 - distance) * 0.03
+            positions[i] += (dx / distance) * force
+            positions[i + 1] += (dy / distance) * force
+          }
         }
       }
       
@@ -328,7 +333,7 @@ function FloatingParticles({ mousePos, timeRef }) {
   )
 }
 
-export default function HybridSphereCanvas() {
+export default function HybridSphereCanvas({ enableMouseInteraction = true, isListening = false }) {
   return (
     <div className="w-full h-full">
       <Canvas
@@ -336,7 +341,7 @@ export default function HybridSphereCanvas() {
         style={{ background: 'transparent' }}
       >
         <ambientLight intensity={0.5} />
-        <HybridSphere />
+        <HybridSphere enableMouseInteraction={enableMouseInteraction} isListening={isListening} />
         <OrbitControls 
           enableZoom={false} 
           enablePan={false}

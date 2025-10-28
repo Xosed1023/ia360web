@@ -1,8 +1,10 @@
 import { useState } from "react";
+// eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
 import AuthModal from "../components/AuthModal";
 import Navbar from "../components/Navbar";
 import HybridSphere from "../components/HybridSphere";
+import "../pages/Landing.css";
 
 // Variantes de animación reutilizables
 const fadeInUp = {
@@ -66,7 +68,18 @@ function Landing() {
       <Navbar onOpenAuth={() => setIsModalOpen(true)} />
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4 overflow-hidden">
+      <section className="relative pt-32 pb-20 px-4 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-50 via-blue-50 to-white"></div>
+
+        {/* Patrón de puntos para textura */}
+        <div
+          className="absolute inset-0 opacity-30"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle, #14b8a6 1px, transparent 1px)",
+            backgroundSize: "20px 20px",
+          }}
+        ></div>
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <motion.div
@@ -76,7 +89,7 @@ function Landing() {
               variants={slideInLeft}
             >
               <motion.h1
-                className="text-5xl font-bold text-gray-900 mb-6"
+                className="text-5xl font-bold text-gray-800 mb-6"
                 variants={fadeInUp}
               >
                 La Inteligencia Artificial que Trabaja para Ti
@@ -104,14 +117,14 @@ function Landing() {
               viewport={{ once: true, margin: "-100px" }}
               variants={slideInRight}
             >
-              <HybridSphere />
+              <HybridSphere enableMouseInteraction={true} isListening={false} />
             </div>
           </div>
         </div>
       </section>
 
       {/* Prueba Arys */}
-      <section id="prueba" className="py-20 px-4 bg-white">
+      <section id="prueba" className="py-20 px-4 bg-white border-gradient">
         <div className="max-w-7xl mx-auto">
           <motion.div
             className="text-center flex flex-col gap-6 items-center"

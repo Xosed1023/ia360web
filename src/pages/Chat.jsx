@@ -1,23 +1,30 @@
-import { useState, useRef, useEffect } from "react";
 import {
-  MessageCircle,
-  Plus,
-  Clock,
-  Send,
-  Mic,
-  Paperclip,
-  Settings,
-  CreditCard,
-  LogOut,
   ChevronDown,
-  PanelLeftClose,
-  PanelLeft,
-  Image,
+  Clock,
+  CreditCard,
   File,
+  Image,
+  Keyboard,
+  LogOut,
+  MessageCircle,
+  Mic,
+  MicOff,
+  PanelLeft,
+  PanelLeftClose,
+  Paperclip,
+  Plus,
+  Send,
+  Settings,
   X,
 } from "lucide-react";
-import { authAPI, chatAPI } from "../services/api";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+// eslint-disable-next-line no-unused-vars
+import { motion, AnimatePresence } from "framer-motion";
+import HybridSphere from "../components/HybridSphere";
+import { authAPI, chatAPI } from "../services/api";
+import chatInSound from "../assets/audio/chat-in.mp3";
+import chatOutSound from "../assets/audio/chat-out.mp3";
 
 export default function ArysChat() {
   const navigate = useNavigate();
@@ -40,6 +47,11 @@ export default function ArysChat() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState([]);
+  const [isVoiceMode, setIsVoiceMode] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [voiceStatus] = useState("Escuchando...");
+
   const messagesEndRef = useRef(null);
   const dropdownRef = useRef(null);
   const attachmentMenuRef = useRef(null);
@@ -97,6 +109,17 @@ export default function ArysChat() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (isVoiceMode && !isMuted) {
+      // Simular cambios de estado de escucha
+      const interval = setInterval(() => {
+        setIsListening((prev) => !prev);
+      }, 3000);
+
+      return () => clearInterval(interval);
+    }
+  }, [isVoiceMode, isMuted]);
 
   const simulateTyping = async (text) => {
     setIsTyping(true);
@@ -206,8 +229,157 @@ export default function ArysChat() {
     return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   };
 
+  const handleVoiceMode = () => {
+    // Reproducir sonido de entrada
+    const audio = new Audio(chatInSound);
+    audio.play().catch(err => console.log('Error al reproducir audio:', err));
+    
+    setIsVoiceMode(true);
+    setIsListening(true);
+    setIsMuted(false);
+  };
+
+  const handleExitVoiceMode = () => {
+    // Reproducir sonido de salida
+    const audio = new Audio(chatOutSound);
+    audio.play().catch(err => console.log('Error al reproducir audio:', err));
+    
+    setIsVoiceMode(false);
+    setIsListening(false);
+    setIsMuted(false);
+  };
+
+  const toggleMute = () => {
+    setIsMuted(!isMuted);
+    setIsListening(!isMuted);
+  };
+
   return (
-    <div className="flex h-screen bg-gray-50 font-sans">
+    <AnimatePresence mode="wait">
+      {isVoiceMode ? (
+        <motion.div
+          key="voice-mode"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+          className="h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-teal-900 flex flex-col items-center justify-center relative overflow-hidden"
+        >
+          {/* Background glow effect */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className="absolute inset-0 bg-gradient-radial from-teal-500/10 via-transparent to-transparent"
+          ></motion.div>
+
+          {/* Title */}
+          <motion.h1
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className="text-3xl font-light text-gray-300 mb-12 z-10"
+          >
+            Hablando con Arys
+          </motion.h1>
+
+          {/* 3D Sphere */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, scale: 0.5, y: 30 }}
+            transition={{
+              duration: 0.3,
+              ease: "easeInOut",
+            }}
+            className="w-96 h-96 mb-12 z-10 flex items-center justify-center"
+          >
+            <div className="w-full h-full">
+              <HybridSphere
+                enableMouseInteraction={false}
+                isListening={isListening}
+              />
+            </div>
+          </motion.div>
+
+          {/* Status Text */}
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.1, ease: "easeInOut" }}
+            className="text-gray-400 text-lg mb-16 z-10"
+          >
+            {isMuted ? "Silenciado" : voiceStatus}
+          </motion.p>
+
+          {/* Control Buttons */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className="flex items-center gap-8 z-10"
+          >
+            {/* Mute/Unmute Button */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={toggleMute}
+              className="flex flex-col items-center gap-3 group"
+            >
+              <div className="w-16 h-16 rounded-full bg-gray-700/50 backdrop-blur-sm flex items-center justify-center hover:bg-gray-700/70 transition-all">
+                {isMuted ? (
+                  <MicOff className="w-7 h-7 text-gray-300" />
+                ) : (
+                  <Mic className="w-7 h-7 text-gray-300" />
+                )}
+              </div>
+              <span className="text-sm text-gray-400">
+                {isMuted ? "Silenciar" : "Activar"}
+              </span>
+            </motion.button>
+
+            {/* End Button */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleExitVoiceMode}
+              className="flex flex-col items-center gap-3 group"
+            >
+              <div className="w-20 h-20 rounded-full bg-teal-500 hover:bg-teal-600 flex items-center justify-center transition-all shadow-lg shadow-teal-500/50">
+                <X className="w-10 h-10 text-white" />
+              </div>
+              <span className="text-sm text-gray-300 font-medium">
+                Terminar
+              </span>
+            </motion.button>
+
+            {/* Switch to Text Button */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleExitVoiceMode}
+              className="flex flex-col items-center gap-3 group"
+            >
+              <div className="w-16 h-16 rounded-full bg-gray-700/50 backdrop-blur-sm flex items-center justify-center hover:bg-gray-700/70 transition-all">
+                <Keyboard className="w-7 h-7 text-gray-300" />
+              </div>
+              <span className="text-sm text-gray-400">Volver a texto</span>
+            </motion.button>
+          </motion.div>
+        </motion.div>
+      ) : (
+        <motion.div
+          key="chat-mode"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+          className="flex h-screen bg-gray-50 font-sans"
+        >
       {/* Sidebar */}
       <div
         className={`bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ${
@@ -270,7 +442,7 @@ export default function ArysChat() {
         {/* User Profile with Dropdown */}
         <div
           className="p-4 border-t border-gray-200 relative"
-          ref ={dropdownRef}
+          ref={dropdownRef}
         >
           <button
             onClick={() => setShowDropdown(!showDropdown)}
@@ -280,9 +452,7 @@ export default function ArysChat() {
               👤
             </div>
             <div className="flex-1 text-left">
-              <div className="text-sm font-semibold text-gray-900">
-                {user}
-              </div>
+              <div className="text-sm font-semibold text-gray-900">{user}</div>
               <div className="text-xs text-gray-500">Plan: {userPlan}</div>
             </div>
             <ChevronDown
@@ -591,7 +761,10 @@ export default function ArysChat() {
                 />
               </div>
 
-              <button className="text-gray-400 hover:text-gray-600 transition-colors">
+              <button
+                onClick={handleVoiceMode}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
                 <Mic className="w-5 h-5" />
               </button>
               <button
@@ -607,6 +780,8 @@ export default function ArysChat() {
           </div>
         </div>
       </div>
-    </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

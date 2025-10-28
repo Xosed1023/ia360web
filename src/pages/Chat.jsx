@@ -23,6 +23,8 @@ export default function ArysChat() {
   const navigate = useNavigate();
   const [message, setMessage] = useState("");
   const [conversations, setConversations] = useState([]);
+  const [user] = useState(JSON.parse(localStorage.getItem("user")).contact);
+  const [userPlan] = useState("Free");
   const [activeChat, setActiveChat] = useState(1);
   const [messages, setMessages] = useState([
     {
@@ -84,7 +86,6 @@ export default function ArysChat() {
     const fetchConversations = async () => {
       try {
         const data = await chatAPI.getChats();
-        console.log(">>> | data:", data)
         setConversations(data);
       } catch (error) {
         console.error("Error al obtener chats:", error);
@@ -269,7 +270,7 @@ export default function ArysChat() {
         {/* User Profile with Dropdown */}
         <div
           className="p-4 border-t border-gray-200 relative"
-          ref={dropdownRef}
+          ref ={dropdownRef}
         >
           <button
             onClick={() => setShowDropdown(!showDropdown)}
@@ -280,9 +281,9 @@ export default function ArysChat() {
             </div>
             <div className="flex-1 text-left">
               <div className="text-sm font-semibold text-gray-900">
-                Nombre Apellido
+                {user}
               </div>
-              <div className="text-xs text-gray-500">Plan: Premium</div>
+              <div className="text-xs text-gray-500">Plan: {userPlan}</div>
             </div>
             <ChevronDown
               className={`w-4 h-4 text-gray-400 transition-transform ${

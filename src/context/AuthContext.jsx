@@ -29,8 +29,6 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       const data = await authAPI.login(email, password);
-
-      console.log(data)
       const userData = {
         contact: data.contact,
         message: data.message,

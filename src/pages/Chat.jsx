@@ -26,19 +26,61 @@ import { authAPI, chatAPI } from "../services/api";
 import chatInSound from "../assets/audio/chat-in.mp3";
 import chatOutSound from "../assets/audio/chat-out.mp3";
 
+// Estilos CSS para mensajes formateados
+const messageStyles = `
+  .message-content pre {
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    overflow-x: auto;
+    margin: 0.5rem 0;
+  }
+
+  .message-content code.inline-code {
+    background-color: #f3f4f6;
+    color: #1f2937;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+  }
+
+  .message-content ul {
+    list-style-type: disc;
+    margin-left: 1.5rem;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .message-content li {
+    margin-bottom: 0.25rem;
+  }
+
+  .message-content strong {
+    font-weight: 600;
+  }
+
+  .message-content em {
+    font-style: italic;
+  }
+`;
+
 export default function ArysChat() {
   const navigate = useNavigate();
   const [message, setMessage] = useState("");
   const [conversations, setConversations] = useState([]);
   const [user] = useState(JSON.parse(localStorage.getItem("user")).contact);
   const [userPlan] = useState("Free");
-  const [activeChat, setActiveChat] = useState(1);
+  const [activeChat, setActiveChat] = useState(null);
+  const [activeContextId, setActiveContextId] = useState(null);
   const [messages, setMessages] = useState([
     {
       id: 1,
       sender: "assistant",
       text: "Hola, soy Arys. ¿En qué puedo ayudarte hoy?",
       timestamp: new Date(),
+      complete: true,
     },
   ]);
   const [isTyping, setIsTyping] = useState(false);
@@ -57,6 +99,14 @@ export default function ArysChat() {
   const attachmentMenuRef = useRef(null);
   const fileInputRef = useRef(null);
   const imageInputRef = useRef(null);
+  const jsonBufferRef = useRef("");
+  const messageIdCounter = useRef(0);
+
+  // Función para generar IDs únicos de mensajes
+  const generateMessageId = () => {
+    messageIdCounter.current += 1;
+    return `msg-${Date.now()}-${messageIdCounter.current}`;
+  };
 
   const dropdownOptions = [
     {
@@ -121,54 +171,457 @@ export default function ArysChat() {
     }
   }, [isVoiceMode, isMuted]);
 
-  const simulateTyping = async (text) => {
-    setIsTyping(true);
-    setStreamingText("");
+  // Formatear respuesta con markdown básico y código
+  const formatResponse = (text) => {
+    if (!text) return "";
 
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    let formatted = text;
 
-    for (let i = 0; i < text.length; i++) {
-      setStreamingText(text.slice(0, i + 1));
-      await new Promise((resolve) => setTimeout(resolve, 20));
+    // Convertir bloques de código (```)
+    formatted = formatted.replace(/```(\w+)?\n([\s\S]*?)```/g, (_match, lang, code) => {
+      return `<pre><code class="language-${lang || 'plaintext'}">${code.trim()}</code></pre>`;
+    });
+
+    // Convertir código inline (`)
+    formatted = formatted.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+
+    // Convertir negritas (**)
+    formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+    // Convertir cursivas (*)
+    formatted = formatted.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+    // Convertir saltos de línea
+    formatted = formatted.replace(/\n/g, '<br/>');
+
+    // Convertir listas (-)
+    formatted = formatted.replace(/^- (.+)$/gm, '<li>$1</li>');
+    formatted = formatted.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+
+    return formatted;
+  };
+
+  // Detectar si el mensaje solicita generar una imagen
+  const isImageRequest = (text) => {
+    const imageKeywords = [
+      "imagen",
+      "foto",
+      "fotografía",
+      "dibujar",
+      "crear imagen",
+      "crea una imagen",
+      "genera la imagen",
+      "dibuja",
+    ];
+    const hasImageIntent =
+      /crear|crea|generar|genera|hacer|dibujar|producir/i.test(
+        text.toLowerCase()
+      );
+    return (
+      imageKeywords.some((keyword) => text.toLowerCase().includes(keyword)) &&
+      hasImageIntent
+    );
+  };
+
+  // Manejar streaming de texto
+  const handleStreamChunk = (chunk) => {
+    // El servidor envía múltiples objetos JSON concatenados
+    // Ejemplo: {"text":"Hola"}{"text":" cómo"}{"text":" estás"}
+
+    // Acumular el chunk en el buffer usando ref
+    const fullText = jsonBufferRef.current + chunk;
+    let processedIndex = 0;
+    let textToAdd = "";
+
+    // Buscar manualmente objetos JSON completos
+    let startIndex = 0;
+    while (startIndex < fullText.length) {
+      const jsonStart = fullText.indexOf('{"text": "', startIndex);
+      if (jsonStart === -1) break;
+
+      const jsonEnd = fullText.indexOf('"}', jsonStart + 9);
+      if (jsonEnd === -1) break; // JSON incompleto, dejar en buffer
+      try {
+        const jsonStr = fullText.substring(jsonStart, jsonEnd + 2);
+        const parsed = JSON.parse(jsonStr);
+
+        if (parsed.text !== undefined) {
+          textToAdd += parsed.text;
+          processedIndex = jsonEnd + 2;
+        }
+      } catch (e) {
+        console.log('Error parsing JSON fragment:', e);
+      }
+
+      startIndex = jsonEnd + 2;
     }
 
+    // Actualizar el buffer con lo que no se pudo procesar
+    jsonBufferRef.current = fullText.substring(processedIndex);
+
+    // Si hay texto para agregar, actualizar el mensaje
+    if (textToAdd) {
+      setMessages((prev) => {
+        const lastMessage = prev[prev.length - 1];
+        if (lastMessage && lastMessage.sender === "assistant" && !lastMessage.complete) {
+          return [
+            ...prev.slice(0, -1),
+            {
+              ...lastMessage,
+              text: lastMessage.text + textToAdd,
+            },
+          ];
+        }
+        return prev;
+      });
+    }
+  };
+
+  // Completar mensaje en streaming
+  const completeStreamingMessage = () => {
+    setMessages((prev) => {
+      const lastMessage = prev[prev.length - 1];
+      if (lastMessage && lastMessage.sender === "assistant") {
+        return [
+          ...prev.slice(0, -1),
+          {
+            ...lastMessage,
+            complete: true,
+          },
+        ];
+      }
+      return prev;
+    });
     setIsTyping(false);
+    setStreamingText("");
+    jsonBufferRef.current = ""; // Limpiar el buffer JSON
+  };
+
+  // Manejar mensajes de solo texto
+  const handleTextMessage = async (text) => {
+    setIsTyping(true);
+    setStreamingText("");
+    jsonBufferRef.current = ""; // Limpiar buffer antes de iniciar
+
+    // Agregar mensaje vacío del asistente para streaming
     setMessages((prev) => [
       ...prev,
       {
-        id: Date.now(),
+        id: generateMessageId(),
         sender: "assistant",
-        text: text,
+        text: "",
         timestamp: new Date(),
+        complete: false,
       },
     ]);
+
+    try {
+      await chatAPI.sendTextMessage(text, handleStreamChunk, activeContextId);
+      completeStreamingMessage();
+    } catch (error) {
+      console.error("Error al enviar mensaje de texto:", error);
+      setMessages((prev) => [
+        ...prev.slice(0, -1),
+        {
+          id: generateMessageId(),
+          sender: "assistant",
+          text: "Error al procesar tu mensaje. Por favor, intenta nuevamente.",
+          timestamp: new Date(),
+          complete: true,
+        },
+      ]);
+      setIsTyping(false);
+      setStreamingText("");
+      jsonBufferRef.current = "";
+    }
+  };
+
+  // Manejar mensajes con archivos
+  const handleMessageWithFiles = async (formData) => {
+    setIsTyping(true);
     setStreamingText("");
+    jsonBufferRef.current = ""; // Limpiar buffer antes de iniciar
+
+    // Agregar mensaje vacío del asistente para streaming
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: generateMessageId(),
+        sender: "assistant",
+        text: "",
+        timestamp: new Date(),
+        complete: false,
+      },
+    ]);
+
+    try {
+      await chatAPI.sendMessageWithFiles(formData, handleStreamChunk);
+      completeStreamingMessage();
+    } catch (error) {
+      console.error("Error al enviar archivos:", error);
+      setMessages((prev) => [
+        ...prev.slice(0, -1),
+        {
+          id: generateMessageId(),
+          sender: "assistant",
+          text: "Error al procesar los archivos. Por favor, intenta nuevamente.",
+          timestamp: new Date(),
+          complete: true,
+        },
+      ]);
+      setIsTyping(false);
+      setStreamingText("");
+      jsonBufferRef.current = "";
+    }
+  };
+
+  // Manejar generación de imágenes
+  const handleImageGeneration = async (prompt) => {
+    setIsTyping(true);
+
+    try {
+      const imageUrl = await chatAPI.generateImage(prompt);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: generateMessageId(),
+          sender: "assistant",
+          text: imageUrl,
+          timestamp: new Date(),
+          complete: true,
+          isImage: true,
+        },
+      ]);
+    } catch (error) {
+      console.error("Error al generar imagen:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: generateMessageId(),
+          sender: "assistant",
+          text: "Error al generar la imagen. Por favor, intenta nuevamente.",
+          timestamp: new Date(),
+          complete: true,
+        },
+      ]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const handleSend = async () => {
-    if (message.trim() || attachedFiles.length > 0) {
-      const userMessage = {
-        id: Date.now(),
+    const userMessage = message.trim();
+    const hasText = userMessage.length > 0;
+    const hasFiles = attachedFiles.length > 0;
+
+    // Si no hay texto ni archivos, no enviar
+    if (!hasText && !hasFiles) return;
+
+    // Crear todos los mensajes de usuario en un solo array
+    const newUserMessages = [];
+
+    // Agregar archivos adjuntos
+    if (hasFiles) {
+      attachedFiles.forEach((file) => {
+        newUserMessages.push({
+          id: generateMessageId(),
+          sender: "user",
+          text: file.preview || file.name,
+          timestamp: new Date(),
+          complete: true,
+          isImage: file.type === "image",
+          attachments: [file],
+        });
+      });
+    }
+
+    // Agregar mensaje de texto del usuario
+    if (hasText) {
+      newUserMessages.push({
+        id: generateMessageId(),
         sender: "user",
-        text: message.trim(),
-        attachments: [...attachedFiles],
+        text: userMessage,
         timestamp: new Date(),
-      };
+        complete: true,
+      });
+    }
 
-      setMessages((prev) => [...prev, userMessage]);
-      setMessage("");
-      setAttachedFiles([]);
+    // Agregar todos los mensajes de usuario de una vez
+    setMessages((prev) => [...prev, ...newUserMessages]);
 
-      const responses = [
-        "Entiendo tu consulta. Basándome en los datos disponibles, puedo ayudarte a analizar esta situación desde diferentes perspectivas.",
-        "Excelente pregunta. Déjame explicarte esto de manera detallada para que puedas tomar la mejor decisión.",
-        "He procesado tu solicitud. Aquí está la información que necesitas, organizada de forma clara y concisa.",
-        "Perfecto, puedo ayudarte con eso. Te proporciono una respuesta completa a tu consulta.",
-      ];
+    // Limpiar input y archivos
+    setMessage("");
+    const currentFiles = [...attachedFiles];
+    setAttachedFiles([]);
 
-      const randomResponse =
-        responses[Math.floor(Math.random() * responses.length)];
-      await simulateTyping(randomResponse);
+    try {
+      // Determinar el tipo de mensaje y usar el servicio correspondiente
+      if (hasFiles) {
+        // Enviar con archivos
+        const formData = new FormData();
+        if (hasText) {
+          formData.append("message", userMessage);
+        }
+        currentFiles.forEach((fileData) => {
+          formData.append("files", fileData.file || fileData);
+        });
+        formData.append("total_files", currentFiles.length.toString());
+
+        await handleMessageWithFiles(formData);
+      } else if (hasText && isImageRequest(userMessage)) {
+        // Generar imagen con IA
+        await handleImageGeneration(userMessage);
+      } else if (hasText) {
+        // Enviar solo texto
+        await handleTextMessage(userMessage);
+      }
+    } catch (error) {
+      console.error("Error al enviar mensaje:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: generateMessageId(),
+          sender: "assistant",
+          text: "Error al procesar tu solicitud. Por favor, intenta nuevamente.",
+          timestamp: new Date(),
+          complete: true,
+        },
+      ]);
+    }
+  };
+
+  // Cargar historial de un chat seleccionado
+  const loadChatHistory = async (idContext) => {
+    try {
+      setActiveContextId(idContext);
+      setActiveChat(idContext);
+
+      const history = await chatAPI.getChatHistory(idContext);
+
+      // Transformar el historial del servidor al formato de mensajes usando flatMap
+      const formattedMessages = [];
+
+      if (Array.isArray(history.data)) {
+        history.data.forEach((msg) => {
+          // Mensaje del usuario
+          if (msg.user) {
+            const userData = msg.user;
+
+            // Imágenes del usuario
+            if (userData.linkImg && Array.isArray(userData.linkImg)) {
+              userData.linkImg.forEach((imgUrl) => {
+                formattedMessages.push({
+                  id: generateMessageId(),
+                  sender: "user",
+                  text: imgUrl,
+                  timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+                  complete: true,
+                  isImage: true,
+                });
+              });
+            }
+
+            // Archivos del usuario
+            if (userData.file && Array.isArray(userData.file)) {
+              userData.file.forEach((fileObj) => {
+                formattedMessages.push({
+                  id: generateMessageId(),
+                  sender: "user",
+                  text: fileObj.url || fileObj.nameOrigin,
+                  timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+                  complete: true,
+                  isFile: true,
+                });
+              });
+            }
+
+            // Texto del usuario
+            if (userData.text) {
+              formattedMessages.push({
+                id: generateMessageId(),
+                sender: "user",
+                text: userData.text,
+                timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+                complete: true,
+              });
+            }
+          }
+
+          // Mensaje del asistente
+          if (msg.arys) {
+            const arysData = msg.arys;
+
+            // Imágenes de la IA
+            if (arysData.linkImg && Array.isArray(arysData.linkImg)) {
+              arysData.linkImg.forEach((imgUrl) => {
+                formattedMessages.push({
+                  id: generateMessageId(),
+                  sender: "assistant",
+                  text: imgUrl,
+                  timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+                  complete: true,
+                  isImage: true,
+                });
+              });
+            }
+
+            // Archivos de la IA
+            if (arysData.file && Array.isArray(arysData.file)) {
+              arysData.file.forEach((fileObj) => {
+                formattedMessages.push({
+                  id: generateMessageId(),
+                  sender: "assistant",
+                  text: fileObj.url || fileObj.nameOrigin,
+                  timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+                  complete: true,
+                  isFile: true,
+                });
+              });
+            }
+
+            // Texto de la IA
+            if (arysData.text) {
+              formattedMessages.push({
+                id: generateMessageId(),
+                sender: "assistant",
+                text: formatResponse(arysData.text),
+                timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+                complete: true,
+              });
+            }
+          }
+        });
+      }
+
+      setMessages(
+        formattedMessages.length > 0
+          ? formattedMessages
+          : [
+              {
+                id: 1,
+                sender: "assistant",
+                text: "Hola, soy Arys. ¿En qué puedo ayudarte hoy?",
+                timestamp: new Date(),
+                complete: true,
+              },
+            ]
+      );
+
+      // Scroll al final después de cargar los mensajes
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    } catch (error) {
+      console.error("Error al cargar historial del chat:", error);
+      setMessages([
+        {
+          id: 1,
+          sender: "assistant",
+          text: "Hola, soy Arys. ¿En qué puedo ayudarte hoy?",
+          timestamp: new Date(),
+          complete: true,
+        },
+      ]);
     }
   };
 
@@ -181,12 +634,14 @@ export default function ArysChat() {
 
     setConversations((prev) => [newChat, ...prev]);
     setActiveChat(newChatId);
+    setActiveContextId(null); // Nuevo chat sin contexto
     setMessages([
       {
-        id: Date.now(),
+        id: generateMessageId(),
         sender: "assistant",
         text: "Hola, soy Arys. ¿En qué puedo ayudarte hoy?",
         timestamp: new Date(),
+        complete: true,
       },
     ]);
   };
@@ -204,6 +659,7 @@ export default function ArysChat() {
           size: file.size,
           type: type,
           preview: type === "image" ? e.target.result : null,
+          file: file, // Guardar el objeto File original para enviar al servidor
         };
 
         setAttachedFiles((prev) => [...prev, newFile]);
@@ -255,7 +711,11 @@ export default function ArysChat() {
   };
 
   return (
-    <AnimatePresence mode="wait">
+    <>
+      {/* Inyectar estilos CSS para mensajes */}
+      <style>{messageStyles}</style>
+
+      <AnimatePresence mode="wait">
       {isVoiceMode ? (
         <motion.div
           key="voice-mode"
@@ -424,8 +884,8 @@ export default function ArysChat() {
           <div className="px-2 space-y-1">
             {conversations.map((conv) => (
               <button
-                key={conv.id}
-                onClick={() => setActiveChat(conv.idContext)}
+                key={conv.idContext}
+                onClick={() => loadChatHistory(conv.idContext)}
                 className={`w-full flex items-center gap-3 rounded-lg px-3 py-3 transition-colors text-left ${
                   activeChat === conv.idContext
                     ? "bg-gray-100 text-gray-900"
@@ -598,7 +1058,18 @@ export default function ArysChat() {
                     </div>
                   )}
 
-                  {msg.text && (
+                  {msg.isImage ? (
+                    <div className="rounded-lg overflow-hidden border border-gray-200 max-w-md">
+                      <img
+                        src={msg.text}
+                        alt="Imagen generada"
+                        className="w-full h-auto object-cover"
+                        onError={(e) => {
+                          e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect fill='%23f0f0f0' width='200' height='200'/%3E%3Ctext fill='%23999' x='50%25' y='50%25' text-anchor='middle' dy='.3em'%3EImagen no disponible%3C/text%3E%3C/svg%3E";
+                        }}
+                      />
+                    </div>
+                  ) : (
                     <div
                       className={`rounded-2xl px-4 py-3 ${
                         msg.sender === "assistant"
@@ -606,48 +1077,32 @@ export default function ArysChat() {
                           : "bg-gray-800 text-white rounded-tr-sm"
                       }`}
                     >
-                      <p className="leading-relaxed">{msg.text}</p>
+                      {msg.text && msg.text.trim() ? (
+                        <div className="leading-relaxed message-content">
+                          <div dangerouslySetInnerHTML={{ __html: formatResponse(msg.text) }} />
+                        </div>
+                      ) : (
+                        /* Mostrar puntos animados si aún no hay texto o está esperando */
+                        msg.sender === "assistant" && (
+                          <div className="flex gap-1">
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                            <div
+                              className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                              style={{ animationDelay: "0.1s" }}
+                            ></div>
+                            <div
+                              className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                              style={{ animationDelay: "0.2s" }}
+                            ></div>
+                          </div>
+                        )
+                      )}
                     </div>
                   )}
                 </div>
               </div>
             ))}
 
-            {/* Streaming Message */}
-            {isTyping && (
-              <div className="flex gap-4">
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 rounded-full bg-emerald-700 flex items-center justify-center text-white font-semibold">
-                    A
-                  </div>
-                </div>
-                <div className="flex flex-col items-start max-w-2xl">
-                  <div className="text-sm font-medium text-gray-600 mb-1">
-                    Arys
-                  </div>
-                  <div className="bg-gray-100 text-gray-900 rounded-2xl rounded-tl-sm px-4 py-3">
-                    {streamingText ? (
-                      <p className="leading-relaxed">
-                        {streamingText}
-                        <span className="inline-block w-1 h-4 bg-gray-900 ml-1 animate-pulse"></span>
-                      </p>
-                    ) : (
-                      <div className="flex gap-1">
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                        <div
-                          className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                          style={{ animationDelay: "0.1s" }}
-                        ></div>
-                        <div
-                          className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                          style={{ animationDelay: "0.2s" }}
-                        ></div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
 
             <div ref={messagesEndRef} />
           </div>
@@ -783,5 +1238,6 @@ export default function ArysChat() {
         </motion.div>
       )}
     </AnimatePresence>
+    </>
   );
 }

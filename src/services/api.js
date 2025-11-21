@@ -99,6 +99,22 @@ export const chatAPI = {
     return await response.json();
   },
 
+  // Obtener historial de mensajes por contexto
+  getChatHistory: async (idContext, paginationSize = 50, paginationKey = 0) => {
+    const response = await fetch(
+      `${API_BASE_URL}/llmText/arys-history?paginationSize=${paginationSize}&paginationKey=${paginationKey}&idContext=${idContext}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Error al obtener historial del chat");
+    }
+
+    return await response.json();
+  },
+
   // Crear nuevo chat
   createChat: async () => {
     const response = await fetch(`${API_BASE_URL}/chats`, {
@@ -139,6 +155,91 @@ export const chatAPI = {
     }
 
     return await response.json();
+  },
+
+  // Enviar mensaje de texto con streaming
+  sendTextMessage: async (message, onStreamCallback, idContext = null) => {
+    const token = getToken();
+    const url = idContext
+      ? `${API_BASE_URL}/llmText/arys-txt?idContext=${idContext}`
+      : `${API_BASE_URL}/llmText/arys-txt`;
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: JSON.stringify({ userMessage: message }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Error al enviar mensaje");
+    }
+
+    // Leer el stream de respuesta
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      if (onStreamCallback) {
+        onStreamCallback(chunk);
+      }
+    }
+  },
+
+  // Enviar mensaje con archivos
+  sendMessageWithFiles: async (formData, onStreamCallback) => {
+    const token = getToken();
+    const response = await fetch(`${API_BASE_URL}/llmFile/arys-file`, {
+      method: "POST",
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error("Error al enviar archivos");
+    }
+
+    // Leer el stream de respuesta
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      if (onStreamCallback) {
+        onStreamCallback(chunk);
+      }
+    }
+  },
+
+  // Generar imagen con IA
+  generateImage: async (prompt) => {
+    const token = getToken();
+    const response = await fetch(`${API_BASE_URL}/llmImage/arys-img-byte`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: JSON.stringify({ userMessage: prompt }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Error al generar imagen");
+    }
+
+    const data = await response.json();
+    return data.imageUrl || data.url || data.data?.url;
   },
 
   // Eliminar chat
